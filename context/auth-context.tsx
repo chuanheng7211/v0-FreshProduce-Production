@@ -3,9 +3,36 @@
 import type React from "react"
 
 import { createContext, useContext, useState, useEffect } from "react"
-import type { UserRole } from "@/types/auth"
+import { createClientSupabaseClient } from "@/lib/supabase"
+import { type User, type UserRole, rolePermissions, roleVisibleViews } from "@/types/auth"
 
-// Define available roles
+interface AuthState {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
+
+interface AuthContextType extends AuthState {
+  switchRole: (role: UserRole) => void
+  can: (action: string, subject: string) => boolean
+  getVisibleViews: () => string[]
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Default user for development
+const DEFAULT_USER = {
+  id: "1",
+  name: "Admin User",
+  email: "admin@example.com",
+  role: "admin" as UserRole,
+  department: "Management",
+  avatar: "/placeholder.svg?height=32&width=32",
+}
+
+// Role switcher options
 export const AVAILABLE_ROLES = [
   {
     id: "admin",
@@ -15,165 +42,187 @@ export const AVAILABLE_ROLES = [
   {
     id: "production_lead",
     name: "Production Lead",
-    description: "Manage production and workforce",
+    description: "Access to task assignments and material requirements",
   },
   {
     id: "sales",
     name: "Sales Team",
-    description: "View and adjust forecasts",
+    description: "Access to forecasts and customer order trends",
   },
   {
     id: "planner",
     name: "Planner",
-    description: "Plan production and resources",
+    description: "Access to planning and forecasting features",
   },
   {
     id: "staff",
     name: "Staff",
-    description: "View assigned tasks",
-  },
-  {
-    id: "viewer",
-    name: "Viewer",
-    description: "View-only access",
+    description: "Limited access to assigned tasks",
   },
 ]
 
-// Define permissions for each role
-const rolePermissions = {
-  admin: {
-    dashboard: ["read", "create", "update", "delete"],
-    forecast: ["read", "create", "update", "delete"],
-    production: ["read", "create", "update", "delete"],
-    labor: ["read", "create", "update", "delete"],
-    report: ["read", "create", "update", "delete"],
-    settings: ["read", "create", "update", "delete"],
-  },
-  production_lead: {
-    dashboard: ["read"],
-    forecast: ["read"],
-    production: ["read", "create", "update"],
-    labor: ["read", "create", "update"],
-    report: ["read"],
-    settings: ["read"],
-  },
-  sales: {
-    dashboard: ["read"],
-    forecast: ["read", "update"],
-    production: ["read"],
-    labor: ["read"],
-    report: ["read"],
-    settings: ["read"],
-  },
-  planner: {
-    dashboard: ["read"],
-    forecast: ["read"],
-    production: ["read", "update"],
-    labor: ["read", "update"],
-    report: ["read"],
-    settings: ["read"],
-  },
-  staff: {
-    dashboard: ["read"],
-    forecast: ["read"],
-    production: ["read"],
-    labor: ["read"],
-    report: ["read"],
-    settings: ["read"],
-  },
-  viewer: {
-    dashboard: ["read"],
-    forecast: ["read"],
-    production: ["read"],
-    labor: ["read"],
-    report: ["read"],
-    settings: ["read"],
-  },
-}
-
-// Define user type
-type User = {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-  avatar?: string
-}
-
-// Define auth context type
-type AuthContextType = {
-  user: User | null
-  login: (email: string, password: string) => Promise<void>
-  logout: () => void
-  switchRole: (role: UserRole) => void
-  can: (action: string, subject: string) => boolean
-}
-
-// Create auth context
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-// Auth provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    isAuthenticated: false,
+    isLoading: true,
+  })
 
-  // Simulate loading user from storage on mount
+  const supabase = createClientSupabaseClient()
+
+  // Check for existing session on mount
   useEffect(() => {
-    // In a real app, you would check for a token in localStorage
-    // and validate it with your backend
-    const mockUser: User = {
-      id: "user1",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      role: "admin",
-      avatar: "/placeholder.svg?height=32&width=32",
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session) {
+        // Get user profile from database
+        const { data: profile } = await supabase.from("users").select("*").eq("id", session.user.id).single()
+
+        if (profile) {
+          setAuthState({
+            user: {
+              id: profile.id,
+              name: profile.name || session.user.email?.split("@")[0] || "User",
+              email: session.user.email || "",
+              role: profile.role as UserRole,
+              department: profile.department,
+              avatar: profile.avatar_url,
+            },
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } else {
+          // For development, set a default user
+          setAuthState({
+            user: DEFAULT_USER,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        }
+      } else {
+        // For development, set a default user
+        setAuthState({
+          user: DEFAULT_USER,
+          isAuthenticated: true,
+          isLoading: false,
+        })
+      }
     }
-    setUser(mockUser)
-  }, [])
+
+    checkSession()
+
+    // Set up auth state change listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        // Get user profile from database
+        const { data: profile } = await supabase.from("users").select("*").eq("id", session.user.id).single()
+
+        if (profile) {
+          setAuthState({
+            user: {
+              id: profile.id,
+              name: profile.name || session.user.email?.split("@")[0] || "User",
+              email: session.user.email || "",
+              role: profile.role as UserRole,
+              department: profile.department,
+              avatar: profile.avatar_url,
+            },
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        }
+      } else if (event === "SIGNED_OUT") {
+        setAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+        })
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  // Function to switch between roles for demonstration
+  const switchRole = (role: UserRole) => {
+    if (authState.user) {
+      setAuthState({
+        ...authState,
+        user: {
+          ...authState.user,
+          role,
+        },
+      })
+    }
+  }
+
+  const can = (action: string, subject: string): boolean => {
+    if (!authState.user) return false
+
+    const userRole = authState.user.role
+    const permissions = rolePermissions[userRole]
+
+    // Check for admin with manage all permission
+    if (permissions.some((p) => p.action === "manage" && p.subject === "all")) {
+      return true
+    }
+
+    // Check for specific permission
+    return permissions.some(
+      (p) => (p.action === action && p.subject === subject) || (p.action === action && p.subject === "all"),
+    )
+  }
+
+  // Get visible views based on user role
+  const getVisibleViews = (): string[] => {
+    if (!authState.user) return []
+    return roleVisibleViews[authState.user.role]
+  }
 
   // Login function
   const login = async (email: string, password: string) => {
-    // In a real app, you would validate credentials with your backend
-    // and receive a token
-    const mockUser: User = {
-      id: "user1",
-      name: "John Doe",
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      role: "admin",
-      avatar: "/placeholder.svg?height=32&width=32",
+      password,
+    })
+
+    if (error) {
+      throw new Error(error.message)
     }
-    setUser(mockUser)
   }
 
   // Logout function
-  const logout = () => {
-    // In a real app, you would clear the token from localStorage
-    setUser(null)
-  }
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut()
 
-  // Switch role function (for demo purposes)
-  const switchRole = (role: UserRole) => {
-    if (user) {
-      setUser({ ...user, role })
+    if (error) {
+      throw new Error(error.message)
     }
   }
 
-  // Permission check function
-  const can = (action: string, subject: string) => {
-    if (!user) return false
-
-    const permissions = rolePermissions[user.role as keyof typeof rolePermissions]
-    if (!permissions) return false
-
-    const subjectPermissions = permissions[subject as keyof typeof permissions]
-    if (!subjectPermissions) return false
-
-    return subjectPermissions.includes(action)
-  }
-
-  return <AuthContext.Provider value={{ user, login, logout, switchRole, can }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        ...authState,
+        switchRole,
+        can,
+        getVisibleViews,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
-// Auth hook
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
