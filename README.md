@@ -1,30 +1,45 @@
-# New Project
+# FPFC Production — Forecast-Driven Production Planning for Fresh Produce
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A production planning system that connects the whole chain for a fresh-produce processing operation — **demand forecast → production plan → yield tracking → labor planning** — in one guided workflow, instead of four disconnected spreadsheets.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/chuanheng2013-gmailcoms-projects/v0-new-project-u2ydatyfidy)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/U2YDAtyFidy)
+## The problem
 
-## Overview
+In fresh-produce processing, planning usually lives in separate files: the forecast in one spreadsheet, production quantities in another, yield and labor tracked somewhere else — if at all. Every forecast change has to be re-keyed by hand into production and labor plans, so the numbers drift apart and planners spend their time copying instead of deciding.
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+This prototype was built to test a different shape: one system where a forecast change flows through to production quantities, yield expectations, and labor requirements automatically.
 
-## Deployment
+## How it works
 
-Your project is live at:
+The app is organized as the planner's actual workflow:
 
-**[https://vercel.com/chuanheng2013-gmailcoms-projects/v0-new-project-u2ydatyfidy](https://vercel.com/chuanheng2013-gmailcoms-projects/v0-new-project-u2ydatyfidy)**
+1. **Forecasting** — build the demand forecast, explore it by product, adjust it, and put it through a review step before it becomes the plan (`forecasting`, `forecast-explorer`, `forecast-adjustment`, `forecast-review`)
+2. **Production planning** — convert the approved forecast into production plans and quantities (`production-planning`, `production-calculator`)
+3. **Yield management** — a yield calculator for planning and a yield tracker for comparing planned vs. actual yield (`yield-calculator`, `yield-tracker`)
+4. **Labor planning** — workforce planning and task assignment driven by the production plan, not by a separate headcount guess (`labor-planning`, `workforce`, `task-assignment`)
+5. **Reporting** — product summaries and reports across the chain (`product-summary`, `reports`)
 
-## Build your app
+The home screen is a **guided workflow** with a dashboard summary, so a planner always knows which step the week is at. Access is role-based: pages are permission-gated (e.g. dashboard read access) behind a login.
 
-Continue building your app on:
+## Tech stack
 
-**[https://v0.dev/chat/projects/U2YDAtyFidy](https://v0.dev/chat/projects/U2YDAtyFidy)**
+- **Next.js** (App Router) + **TypeScript** + **React**
+- **Tailwind CSS** with **shadcn/ui** (Radix UI components)
+- Form handling with validation (react-hook-form + resolvers)
+- Built with AI-assisted development (**v0.dev**), deployed on **Vercel**
 
-## How It Works
+## Status
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+Working prototype, built in May 2025 as a self-contained demonstration of the forecast-to-labor planning chain. It runs on demo data and is intended to show the workflow design and product thinking, not to represent a live employer's system.
+
+## Run it locally
+
+```bash
+npm install
+npm run dev
+```
+
+## About the builder
+
+Built by **Chuanheng Cheng** — Business Analyst working in fresh-produce supply chain (production coordination, data analysis, and planning workflows), now focused on AI-assisted analytics and planning tools.
+
+- LinkedIn: https://www.linkedin.com/in/chuanhengcheng/
