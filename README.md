@@ -2,6 +2,12 @@
 
 A production planning system that connects the whole chain for a fresh-produce processing operation — **demand forecast → production plan → yield tracking → labor planning** — in one guided workflow, instead of four disconnected spreadsheets.
 
+## The project behind this prototype
+
+This app is the planning layer of a larger operations project. The operation runs **case-in / case-out**: product is bought by the case and sold by the case, which leaves production as a black box — no per-product cost truth. The project builds the missing data skeleton inside production — **BOM, recipes, work cards, workflow, and downtime tracking** — so every finished product can be traced back to its raw materials, lead times, inventory position, and perishability window.
+
+Combining that production data with purchasing data is where the value appears: locating cost savings per product, identifying which products are price-driven, and timing purchasing power and process capacity against raw-material cost fluctuations — processing at the right moment extends a perishable product's selling window, so value bought low can be captured when the market moves. External benchmarks then sort products into **price tiers**, each with its own pricing logic instead of one blunt markup.
+
 ## The problem
 
 In fresh-produce processing, planning usually lives in separate files: the forecast in one spreadsheet, production quantities in another, yield and labor tracked somewhere else — if at all. Every forecast change has to be re-keyed by hand into production and labor plans, so the numbers drift apart and planners spend their time copying instead of deciding.
